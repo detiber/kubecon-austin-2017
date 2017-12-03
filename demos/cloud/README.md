@@ -1,8 +1,3 @@
-### TODO
-
-## Troubleshooting
-- Troubleshoot issue with multi-arch changeset
-
 ## Bootstrapping
 - Provision the instances for bootstrapping
   - 1 AWS, 1 Packet, use one of the existing osuosl instances
@@ -14,7 +9,7 @@
 ```
   sudo yum update -y
   sudo yum install -y golang docker git epel-release
-  sudo yum install -y tito createrepo
+  sudo yum install -y tito createrepo bsdtar krb5-devel
   sudo reboot
   git clone https://github.com/openshift/origin.git
   cd origin
@@ -26,8 +21,8 @@
 ```
 
 
-- Grab the Origin 3.7 source tarball from github
-- Copy 3.7 source tarball to each bootstrapping host
+### TODO
+## Bootstrapping
 - Build binaries and images on each bootstrapping host
 - Copy generated binaries to this repo
 - Push generated images to openshiftmultiarch dockerhub org
