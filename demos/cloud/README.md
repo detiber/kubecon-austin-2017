@@ -79,6 +79,17 @@ done
 - node1.osuosl.kubecon.paas.ninja -> OSUOSL m1.xlarge instance for cluster node
 - node2.osuosl.kubecon.paas.ninja -> OSUOSL m1.xlarge instance for cluster node
 
+### Cluster Build
+- On all hosts:
+```
+cd /etc/yum.repos.d
+wget http://rpms.kubecon.paas.ninja/kubecon-demo.repo
+yum install -y origin-clients docker
+echo 'STORAGE_DRIVER: overlay2' > /etc/sysconfig/docker-storage-setup
+sudo systemctl start docker
+
+```
+
 ### TODO
 ## Demo Build
 - Use the previously generated binaries and images to start a cluster using oc cluster up/oc cluster join
