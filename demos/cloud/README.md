@@ -1,4 +1,4 @@
-## Bootstrapping
+## Bootstrapping the build hosts
 - Provision the instances for bootstrapping
   - 1 AWS, 1 Packet, use one of the existing osuosl instances
   - Packet hostname: bootstrap-arm64 ip: 147.75.201.190
@@ -7,33 +7,80 @@
 - Configure bootstrap hosts
   - Installed using CentOS 7
 ```
-  sudo yum update -y
-  sudo yum install -y golang docker git epel-release
-  sudo yum install -y tito createrepo bsdtar krb5-devel
-  sudo reboot
-  git clone https://github.com/openshift/origin.git
-  cd origin
-  git checkout release-3.7
-  sed -i s/amd64/<arch>/ Makefile
-  git config user.name <name>
-  git config user.email <email>
-  make build-rpms
+sudo yum update -y
+sudo yum install -7 epel-release docker git wget tito
+cd /etc/yum.repos.d
+sudo wget https://github.com/openshift/release/blob/master/projects/origin-release/base/cbs-paas7-openshift-multiarch-el7-build.repo
+cd 
+sudo yum install -y golang createrepo bsdtar krb5-devel
+sudo systemctl enable docker
+echo <<EOF > /etc/docker/daemon.json
+{
+    "live-restore": true,
+    "group": "dockerroot"
+}
+EOF
+sudo usermod -a -G dockerroot <user>
+sudo reboot
 ```
 
+## Build the binaries and images
+```
+export GOPATH=~/go
+export PATH=${PATH}:${GOPATH}/bin
+go get -u github.com/openshift/imagebuilder/cmd/imagebuilder
+git clone https://github.com/openshift/origin.git
+cd origin
+git checkout release-3.7
+sed -i s/amd64/<arch>/g Makefile
+sed -i s/amd64/<arch>/g hack/build-rpm-release.sh
+sed -i s/amd64/<arch>/g hack/build-images.sh
+git config user.name <name>
+git config user.email <email>
+git commit -am test
+hack/build-base-images.sh
+make build-images
+for image in `docker images | grep latest | awk '{print $1}' | cut -d '/' -f 2`; do docker tag "openshift/${image}:latest" "openshiftmultiarch/${image}-$(arch):v3.7.0-multiarch.0"; done
+docker login
+for image in `docker images | grep latest | awk '{print $1}' | cut -d '/' -f 2`; do docker push "openshiftmultiarch/${image}-$(arch):v3.7.0-multiarch.0"; done
+```
+
+## Create the manifest list image
+```
+for image in openvswitch hello-openshift node origin-haproxy-router origin-keepalived-ipfailover origin-gitserver origin-sti-builder origin-deployer origin-f5-router origin-docker-builder origin-recycler origin origin-federation origin-egress-http-proxy origin-docker-registry origin-cluster-capacity origin-template-service-broker origin-service-catalog origin-base origin-pod origin-source; do
+  cat << EOF > manifest.yaml
+image: openshiftmultiarch/${image}:v3.7.0-multiarch.0
+manifests:
+EOF
+  for arch in x86_64 aarch64 ppc64le; do
+    docker pull openshiftmultiarch/${image}-${arch}:v3.7.0-multiarch.0
+    echo "- image: 'openshiftmultiarch/${image}-${arch}:v3.7.0-multiarch.0'" >> manifest.yaml
+    echo "  platform:" >> manifest.yaml
+    if [[ "${arch}" == "x86_64" ]]; then
+      echo "    architecture: amd64" >> manifest.yaml
+    elif [[ "${arch}" == "aarch64" ]]; then 
+      echo "    architecture: arm64" >> manifest.yaml
+    else; 
+      echo "    architecture: ${arch}" >> manifest.yaml
+    fi
+    echo "    os: linux" >> manifest.yaml
+  done
+  manifest-tool push from-spec manifest.yaml
+done
+```
+
+## DNS Configuration
+- Delegated kubecon.paas.ninja to a Route53 Hosted Zone
+- openshift.kubecon.paas.ninja -> AWS m4.xlarge instance for cluster master
+- node1.aws.kubecon.paas.ninja -> AWS m4.xlarge instance for cluster node
+- node2.aws.kubecon.paas.ninja -> AWS m4.xlarge instance for cluster node
+- node1.packet.kubecon.paas.ninja -> Packet Type 2A instance for cluster node
+- node2.packet.kubecon.paas.ninja -> Packet Type 2A instance for cluster node
+- node1.osuosl.kubecon.paas.ninja -> OSUOSL m1.xlarge instance for cluster node
+- node2.osuosl.kubecon.paas.ninja -> OSUOSL m1.xlarge instance for cluster node
 
 ### TODO
-## Bootstrapping
-- Build binaries and images on each bootstrapping host
-- Copy generated binaries to this repo
-- Push generated images to openshiftmultiarch dockerhub org
-- Deprovision the bootstrapping instances
-
 ## Demo Build
-- Configure delegated route53 dns zone for the cluster
-  - kubecon.paas.ninja
-- Provision the cluster instances
-  - 1 AWS Master, 2 AWS Nodes, 2 Packet Nodes, 2 OSUOSL nodes
-    - Reprovision the OSUOSL bootstrapping instance for one of the nodes
 - Use the previously generated binaries and images to start a cluster using oc cluster up/oc cluster join
 - Create a CI workflow for building the multi-arch binaries and images
 - Work on getting https://github.com/gnunn1/summit-game-ansible running on the multi-arch cluster
