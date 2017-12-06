@@ -78,16 +78,36 @@ done
 - node2.packet.kubecon.paas.ninja -> Packet Type 2A instance for cluster node
 - node1.osuosl.kubecon.paas.ninja -> OSUOSL m1.xlarge instance for cluster node
 - node2.osuosl.kubecon.paas.ninja -> OSUOSL m1.xlarge instance for cluster node
+- *.apps.kubecon.paas.ninja
 
 ### Cluster Build
 - On all hosts:
 ```
 cd /etc/yum.repos.d
 wget http://rpms.kubecon.paas.ninja/kubecon-demo.repo
-yum install -y origin-clients docker
-echo 'STORAGE_DRIVER: overlay2' > /etc/sysconfig/docker-storage-setup
-sudo systemctl start docker
 
+
+yum install -y origin-clients docker atomic-registries
+echo 'STORAGE_DRIVER: overlay2' > /etc/sysconfig/docker-storage-setup
+sudo usermod -a -G dockerroot `whoami`
+echo <<EOF > /etc/docker/daemon.json
+{
+    "live-restore": true,
+    "group": "dockerroot"
+}
+EOF
+echo "insecure_registries: [172.30.0.0/16]" >> /etc/containers/registries.conf
+sudo systemctl enable docker
+reboot
+```
+- Master:
+```
+oc cluster up --public-hostname openshift.kubecon.paas.ninja --image="openshiftmultiarch/origin" --version="v3.7.0-multiarch.0" --routing-suffix="apps.kubecon.paas.ninja" --skip-registry-check
+```
+- Nodes:
+  - The secret requested by oc cluster join is the contents of /var/lib/origin/openshift.local.config/master/admin.kubeconfig on the master host, you may need to press Ctrl-D after pasting the contents
+```
+oc cluster join --image="openshiftmultiarch/origin" --version="v3.7.0-multiarch.0" --skip-registry-check
 ```
 
 ### TODO
