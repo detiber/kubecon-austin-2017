@@ -10,7 +10,7 @@
 sudo yum update -y
 sudo yum install -7 epel-release docker git wget tito
 cd /etc/yum.repos.d
-sudo wget https://github.com/openshift/release/blob/master/projects/origin-release/base/cbs-paas7-openshift-multiarch-el7-build.repo
+sudo wget https://raw.githubusercontent.com/openshift/release/master/projects/origin-release/base/cbs-paas7-openshift-multiarch-el7-build.repo
 cd 
 sudo yum install -y golang createrepo bsdtar krb5-devel
 sudo systemctl enable docker
@@ -80,12 +80,23 @@ done
 - node2.osuosl.kubecon.paas.ninja -> OSUOSL m1.xlarge instance for cluster node
 - *.apps.kubecon.paas.ninja
 
+### Control Host
+- assumes control host already has git, ansible, and any other pre-requisites needed for running openshift-ansible
+```
+git clone https://github.com/openshift/openshift-ansible.git
+cd openshift-ansible
+git checkout release-3.7
+ansible-playbook -i ../hosts.cloud playbooks/byo/config.yml
+
+```
+
 ### Cluster Build
 - On all hosts:
 ```
+sudo yum install -y wget
 cd /etc/yum.repos.d
 wget http://rpms.kubecon.paas.ninja/kubecon-demo.repo
-
+sudo wget https://raw.githubusercontent.com/openshift/release/master/projects/origin-release/base/cbs-paas7-openshift-multiarch-el7-build.repo
 
 yum install -y origin-clients docker atomic-registries
 echo 'STORAGE_DRIVER: overlay2' > /etc/sysconfig/docker-storage-setup
