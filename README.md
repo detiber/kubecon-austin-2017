@@ -8,5 +8,5 @@ chmod +x bin/oc
 ```
 - Start the cluster
 ```
-sudo bin/oc cluster up --image="openshiftmultiarch/origin" --version="v3.7.0-multiarch.0" --skip-registry-check
+sudo bin/oc cluster up --image="openshiftmultiarch/origin" --version="v3.7.0-multiarch.0" --public-hostname=<ip address>
 ```
