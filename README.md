@@ -12,3 +12,8 @@ chmod +x bin/oc
 ```
 sudo bin/oc cluster up --image="openshiftmultiarch/origin" --version="v3.7.0-multiarch.0" --public-hostname=<ip address>
 ```
+- Deploy the guestbook app
+```
+curl -s https://raw.githubusercontent.com/detiber/kubecon-austin-2017/master/guestbook-all-in-one.yaml -o guestbook-all-in-one.yaml
+oc create -f guestbook-all-in-one.yaml
+```
